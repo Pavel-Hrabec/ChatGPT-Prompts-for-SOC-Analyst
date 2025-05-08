@@ -1,50 +1,66 @@
 openapi: 3.1.0
 info:
   title: GreyNoise Community API
-  description: Access GreyNoise data to determine if an IP address is noisy or benign using the free community API.
-  version: 1.0.0
+  description: Look up noise classification and metadata for an IP using the GreyNoise Community API.
+  version: 1.0.3
+
 servers:
   - url: https://api.greynoise.io
-    description: GreyNoise Community API server
+
 paths:
   /v3/community/{ip}:
     get:
-      operationId: getIpInfo
-      summary: Get community noise information for a given IP address.
+      operationId: getCommunityIpInfo
+      summary: Get noise classification for a specific IP address.
       parameters:
         - name: ip
           in: path
           required: true
-          description: The IP address to query.
+          description: IP address to query (e.g. 8.8.8.8).
           schema:
             type: string
+            format: ipv4
       responses:
         '200':
-          description: IP information from the community API
+          description: Successful response with IP data.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/CommunityIpResponse'
         '404':
-          description: IP not found
+          description: IP not found or not in dataset.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotFoundResponse'
+        '403':
+          description: Invalid API key.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnauthorizedResponse'
         '429':
-          description: Rate limit exceeded
+          description: Rate limit exceeded.
         '500':
-          description: Internal server error
+          description: Internal server error.
       security:
         - apiKeyAuth: []
+
 components:
   securitySchemes:
     apiKeyAuth:
       type: apiKey
       in: header
       name: key
+
   schemas:
     CommunityIpResponse:
       type: object
+      required: [ip, noise, riot, classification, message]
       properties:
         ip:
           type: string
+          format: ipv4
         noise:
           type: boolean
         riot:
@@ -54,8 +70,32 @@ components:
           description: Classification of the IP (e.g., benign, malicious, unknown)
         name:
           type: string
-          description: Name or label associated with the IP
+          nullable: true
         link:
           type: string
           format: uri
-          description: URL to view more information about the IP
+        last_seen:
+          type: string
+          format: date
+        message:
+          type: string
+
+    NotFoundResponse:
+      type: object
+      required: [message, ip, noise, riot]
+      properties:
+        message:
+          type: string
+        ip:
+          type: string
+        noise:
+          type: boolean
+        riot:
+          type: boolean
+
+    UnauthorizedResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
